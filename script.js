@@ -3,7 +3,7 @@ const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
-// 2. ያንተ የFirebase ቁልፍ (Config) - በትክክል ገብቷል
+// 2. ያንተ የFirebase ቁልፍ (Config)
 const firebaseConfig = {
     apiKey: "AIzaSyDmsc0Vpm6cjLeMl9I0W0mjvqS_CYq5oRw",
     authDomain: "globalnovels-73cbb.firebaseapp.com",
@@ -53,31 +53,44 @@ function renderLanguages() {
     });
 }
 
+// መጽሐፍትን ማምጣት (በጣም የጠነከረ ፍለጋ)
 async function loadNovels(langId) {
     const listContainer = document.getElementById('language-list');
     listContainer.innerHTML = '<div style="padding:50px;">በመፈለግ ላይ...</div>';
 
     try {
-        // መዝገቡ Novels (ካፒታል N) እና መለያው Language (ካፒታል L) መሆኑን አረጋግጫለሁ
-        const snapshot = await db.collection("Novels")
-                                 .where("Language", "==", langId)
-                                 .get();
+        // 1. መጀመሪያ "Novels" ውስጥ ያለውን ነገር በሙሉ አምጣ (ለማረጋገጥ)
+        const snapshot = await db.collection("Novels").get();
 
         if (snapshot.empty) {
+            alert("ዳታቤዙ ውስጥ 'Novels' የሚባል መዝገብ ባዶ ነው!");
+            renderLanguages();
+            return;
+        }
+
+        // 2. አሁን በቋንቋው ብቻ ለይተን እናውጣ
+        let foundBooks = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            // ቋንቋውን ስናነጻጽር ክፍት ቦታ (Space) ካለ እንዲያጠፋው አድርጌዋለሁ
+            if (data.Language && data.Language.trim().toLowerCase() === langId.toLowerCase()) {
+                foundBooks.push(data);
+            }
+        });
+
+        if (foundBooks.length === 0) {
             listContainer.innerHTML = `
                 <button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ተመለስ</button>
-                <p>ለዚህ ቋንቋ (${langId}) እስካሁን መጽሐፍ አልተጫነም!</p>
+                <p>ለዚህ ቋንቋ (${langId}) መጽሐፍ አልተገኘም። በዳታቤዝህ 'Language' የሚለው 'am' መሆኑን አረጋግጥ።</p>
             `;
             return;
         }
 
+        // 3. መጽሐፍቱን አሳይ
         listContainer.innerHTML = `<button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ወደ ቋንቋ መምረጫ</button>`;
-
-        snapshot.forEach(doc => {
-            const data = doc.data();
+        foundBooks.forEach(data => {
             const bookDiv = document.createElement('div');
             bookDiv.className = 'book-card';
-            // እዚህ ጋር በካፒታል ፊደል መጀመራቸውን (Title, Author, Cover) አረጋግጫለሁ
             bookDiv.innerHTML = `
                 <img src="${data.Cover}" style="width:100%; height:200px; object-fit:cover; border-radius:10px; margin-bottom:10px;">
                 <h3 style="margin:5px 0;">${data.Title}</h3>
@@ -87,8 +100,10 @@ async function loadNovels(langId) {
             bookDiv.onclick = () => openReader(data);
             listContainer.appendChild(bookDiv);
         });
+
     } catch (error) {
-        alert("ስህተት፡ " + error.message);
+        alert("የFirebase ስህተት፡ " + error.message);
+        renderLanguages();
     }
 }
 
