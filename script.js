@@ -16,94 +16,85 @@ const db = firebase.firestore();
 const languages = [
     { id: 'am', name: 'Amharic', native: '(የአማርኛ ልብወለዶች)', flag: 'https://flagcdn.com/w160/et.png' },
     { id: 'en', name: 'English', native: 'English Novels', flag: 'https://flagcdn.com/w160/gb.png' },
+    { id: 'id', name: 'Indonesian', native: '(Novel Bahasa Indonesia)', flag: 'https://flagcdn.com/w160/id.png' },
+    { id: 'ko', name: 'Korean', native: '(한국 소설)', flag: 'https://flagcdn.com/w160/kr.png' },
+    { id: 'ja', name: 'Japanese', native: '(日本の小説)', flag: 'https://flagcdn.com/w160/jp.png' },
+    { id: 'ar', name: 'Arabic', native: '(روايات عربية)', flag: 'https://flagcdn.com/w160/sa.png' },
+    { id: 'hi', name: 'Hindi', native: '(हिंदी उपन्यास)', flag: 'https://flagcdn.com/w160/in.png' },
+    { id: 'zh', name: 'Chinese', native: '(中文小说)', flag: 'https://flagcdn.com/w160/cn.png' },
+    { id: 'fr', name: 'French', native: '(Romans français)', flag: 'https://flagcdn.com/w160/fr.png' },
+    { id: 'it', name: 'Italian', native: '(Romanzi italiani)', flag: 'https://flagcdn.com/w160/it.png' },
+    { id: 'es', name: 'Spanish', native: '(Novelas en español)', flag: 'https://flagcdn.com/w160/es.png' },
+    { id: 'de', name: 'German', native: '(Deutsche Romane)', flag: 'https://flagcdn.com/w160/de.png' },
+    { id: 'pt', name: 'Portuguese', native: '(Romances portugueses)', flag: 'https://flagcdn.com/w160/pt.png' },
     { id: 'ru', name: 'Russian', native: '(Русские романы)', flag: 'https://flagcdn.com/w160/ru.png' }
 ];
 
 function renderLanguages() {
     const listContainer = document.getElementById('language-list');
-    listContainer.innerHTML = '<h1 style="color:#0055ff;">Global Novels</h1>';
+    listContainer.innerHTML = '';
     languages.forEach(lang => {
-        const langDiv = document.createElement('div');
-        langDiv.className = 'lang-item';
-        langDiv.innerHTML = `<img src="${lang.flag}" class="lang-flag"><h3>${lang.name}</h3><p>${lang.native}</p>`;
-        langDiv.onclick = () => loadNovels(lang.id);
-        listContainer.appendChild(langDiv);
+        const div = document.createElement('div');
+        div.className = 'lang-item';
+        div.innerHTML = `<img src="${lang.flag}" class="lang-flag"><h3>${lang.name}</h3><p>${lang.native}</p>`;
+        div.onclick = () => loadNovels(lang.id);
+        listContainer.appendChild(div);
     });
 }
 
 async function loadNovels(langId) {
     const listContainer = document.getElementById('language-list');
-    listContainer.innerHTML = '<div style="padding:50px;">በመፈለግ ላይ...</div>';
-
+    listContainer.innerHTML = '<div>በመፈለግ ላይ...</div>';
     try {
-        // ሁሉንም መዝገቦች (Novels እና novels) በጋራ እንፈትሽ
-        let snapshot = await db.collection("Novels").get();
-        if (snapshot.empty) {
-            snapshot = await db.collection("novels").get();
-        }
-
-        if (snapshot.empty) {
-            listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ተመለስ</button><p>ስህተት፡ ዳታቤዙ ውስጥ 'Novels' የሚባል መዝገብ አልተገኘም!</p>`;
-            return;
-        }
-
+        // "Novels" መዝገብን መፈለግ
+        const snapshot = await db.collection("Novels").get();
         let foundBooks = [];
+        
         snapshot.forEach(doc => {
             const data = doc.data();
-            // በዳታቤዝህ ውስጥ ያለውን የቋንቋ መለያ በሁሉም መንገድ እንፈልገው
-            const dbLang = (data.Language || data.language || data.LANGUAGE || "").toString().trim().toLowerCase();
+            // ካፒታል 'Language' ወይም ትንሽ 'language' ቢሆንም ፈልጎ ያገኘዋል
+            let dbLang = data.Language || data.language || "";
+            dbLang = dbLang.toString().replace(/['"]+/g, '').trim().toLowerCase();
             
-            if (dbLang === langId.toLowerCase()) {
-                foundBooks.push(data);
-            }
+            if (dbLang === langId) { foundBooks.push(data); }
         });
 
         if (foundBooks.length === 0) {
-            listContainer.innerHTML = `
-                <button onclick="renderLanguages()">⬅️ ተመለስ</button>
-                <p>ለቋንቋው (${langId}) መጽሐፍ አልተገኘም።</p>
-                <p style="font-size:12px; color:gray;">ፍንጭ፡ ዳታቤዝህ ውስጥ 'Language' የሚለው ቃል 'am' መሆኑን አረጋግጥ።</p>
-            `;
+            listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ተመለስ</button><p>ለዚህ ቋንቋ (${langId}) መጽሐፍ አልተገኘም!</p>`;
             return;
         }
 
-        listContainer.innerHTML = `<button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ተመለስ</button>`;
+        listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ተመለስ</button>`;
         foundBooks.forEach(data => {
-            const bookDiv = document.createElement('div');
-            bookDiv.className = 'book-card';
-            // በዳታቤዝህ ያሉት ስሞች (Title, Author, Cover)
-            const title = data.Title || data.title || "ርዕስ የለም";
-            const author = data.Author || data.author || "ደራሲ የለም";
-            const cover = data.Cover || data.cover || "https://via.placeholder.com/150";
+            const div = document.createElement('div');
+            div.className = 'book-card';
+            const title = (data.Title || data.title || "ርዕስ የለም").toString().replace(/['"]+/g, '');
+            const author = (data.Author || data.author || "ደራሲ የለም").toString().replace(/['"]+/g, '');
+            const cover = (data.Cover || data.cover || "").toString().replace(/['"]+/g, '');
 
-            bookDiv.innerHTML = `
-                <img src="${cover}" style="width:100%; height:200px; object-fit:cover; border-radius:10px;">
-                <h3 style="margin:10px 0;">${title}</h3>
-                <p>ደራሲ፡ ${author}</p>
-                <button class="read-btn" style="margin-top:10px; background:#0055ff; color:white; border:none; padding:12px; width:100%; border-radius:15px;">አንብብ</button>
+            div.innerHTML = `
+                <img src="${cover}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
+                <h3>${title}</h3><p>በ ${author}</p>
+                <button class="read-btn">አንብብ</button>
             `;
-            bookDiv.onclick = () => openReader(data);
-            listContainer.appendChild(bookDiv);
+            div.onclick = () => openReader(data);
+            listContainer.appendChild(div);
         });
-
-    } catch (e) {
-        alert("የዳታቤዝ ግንኙነት ተቋርጧል፡ " + e.message);
-    }
+    } catch (e) { alert("ስህተት፡ " + e.message); }
 }
 
 function openReader(book) {
     const listContainer = document.getElementById('language-list');
-    const content = book.Content || book.content || "ይዘት የለውም";
-    const title = book.Title || book.title || "ርዕስ የለም";
+    const content = (book.Content || book.content || "").toString().replace(/['"]+/g, '');
+    const title = (book.Title || book.title || "").toString().replace(/['"]+/g, '');
     listContainer.innerHTML = `
-        <div class="reader-view" style="text-align:left; padding:15px;">
-            <button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ዝርዝር</button>
-            <h1 style="color:#0055ff;">${title}</h1>
-            <hr>
-            <div style="white-space: pre-wrap; margin-top:20px; font-size:18px; line-height:1.9;">${content}</div>
+        <div class="reader-view">
+            <button onclick="renderLanguages()">⬅️ ዝርዝር</button>
+            <h2 style="color:#0055ff;">${title}</h2><hr>
+            <div style="white-space: pre-wrap; margin-top:20px;">${content}</div>
         </div>
     `;
-    window.scrollTo(0, 0);
+    window.scrollTo(0,0);
 }
 
 document.addEventListener('DOMContentLoaded', renderLanguages);
