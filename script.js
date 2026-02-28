@@ -16,7 +16,7 @@ const db = firebase.firestore();
 const languages = [
     { id: 'am', name: 'Amharic', native: '(የአማርኛ ልብወለዶች)', flag: 'https://flagcdn.com/w160/et.png' },
     { id: 'en', name: 'English', native: 'English Novels', flag: 'https://flagcdn.com/w160/gb.png' },
-    { id: 'id', name: 'Indonesian', native: '(Novel Bahasa Indonesia)', flag: 'https://flagcdn.com/w160/id.png' },
+    { id: 'id', name: 'Indonesian', native: '(Bahasa Indonesia)', flag: 'https://flagcdn.com/w160/id.png' },
     { id: 'ko', name: 'Korean', native: '(한국 소설)', flag: 'https://flagcdn.com/w160/kr.png' },
     { id: 'ja', name: 'Japanese', native: '(日本の小説)', flag: 'https://flagcdn.com/w160/jp.png' },
     { id: 'ar', name: 'Arabic', native: '(روايات عربية)', flag: 'https://flagcdn.com/w160/sa.png' },
@@ -42,59 +42,83 @@ function renderLanguages() {
     });
 }
 
+// ማንኛውንም ምልክት (እንደ ") እና ክፍት ቦታ የሚያጠፋ
+function clean(val) {
+    if (!val) return "";
+    return val.toString().replace(/['"]+/g, '').trim().toLowerCase();
+}
+
 async function loadNovels(langId) {
     const listContainer = document.getElementById('language-list');
-    listContainer.innerHTML = '<div>በመፈለግ ላይ...</div>';
+    listContainer.innerHTML = '<div style="padding:50px;">በመፈለግ ላይ...</div>';
+    
     try {
-        // "Novels" መዝገብን መፈለግ
-        const snapshot = await db.collection("Novels").get();
-        let foundBooks = [];
-        
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            // ካፒታል 'Language' ወይም ትንሽ 'language' ቢሆንም ፈልጎ ያገኘዋል
-            let dbLang = data.Language || data.language || "";
-            dbLang = dbLang.toString().replace(/['"]+/g, '').trim().toLowerCase();
-            
-            if (dbLang === langId) { foundBooks.push(data); }
-        });
+        // 1. መዝገቡን (Collection) በሁለቱም መንገድ እንፈትሽ
+        let snapshot = await db.collection("Novels").get();
+        if (snapshot.empty) { snapshot = await db.collection("novels").get(); }
 
-        if (foundBooks.length === 0) {
-            listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ተመለስ</button><p>ለዚህ ቋንቋ (${langId}) መጽሐፍ አልተገኘም!</p>`;
+        if (snapshot.empty) {
+            listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ተመለስ</button><p>ዳታቤዝ ላይ 'Novels' የሚባል መዝገብ አልተገኘም!</p>`;
             return;
         }
 
-        listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ተመለስ</button>`;
+        let foundBooks = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            // 2. በዳታቤዝህ ውስጥ ያለውን የቋንቋ መለያ (Language) ፈልጎ ማግኘት
+            let dbLang = "";
+            for (let key in data) {
+                if (key.toLowerCase().trim() === "language") {
+                    dbLang = clean(data[key]);
+                }
+            }
+            if (dbLang === langId.toLowerCase()) { foundBooks.push(data); }
+        });
+
+        if (foundBooks.length === 0) {
+            listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ተመለስ</button><p>ለቋንቋው (${langId}) መጽሐፍ አልተገኘም!</p>`;
+            return;
+        }
+
+        // 3. መጽሐፉን ማሳየት
+        listContainer.innerHTML = `<button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px;">⬅️ ተመለስ</button>`;
         foundBooks.forEach(data => {
             const div = document.createElement('div');
             div.className = 'book-card';
-            const title = (data.Title || data.title || "ርዕስ የለም").toString().replace(/['"]+/g, '');
-            const author = (data.Author || data.author || "ደራሲ የለም").toString().replace(/['"]+/g, '');
-            const cover = (data.Cover || data.cover || "").toString().replace(/['"]+/g, '');
+            // መረጃዎቹን (Title, Author, Cover) በብልህ መንገድ መለየት
+            let title = "", author = "", cover = "";
+            for (let key in data) {
+                let k = key.toLowerCase().trim();
+                if (k === "title") title = clean(data[key]);
+                if (k === "author") author = clean(data[key]);
+                if (k === "cover") cover = clean(data[key]);
+            }
 
             div.innerHTML = `
-                <img src="${cover}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
-                <h3>${title}</h3><p>በ ${author}</p>
-                <button class="read-btn">አንብብ</button>
-            `;
+                <img src="${cover || 'https://via.placeholder.com/150'}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
+                <h3 style="margin-top:10px;">${title || "ርዕስ የለም"}</h3>
+                <p>ደራሲ፡ ${author || "ደራሲ የለም"}</p>
+                <button class="read-btn">አንብብ</button>`;
             div.onclick = () => openReader(data);
             listContainer.appendChild(div);
         });
-    } catch (e) { alert("ስህተት፡ " + e.message); }
+    } catch (e) { alert("የዳታቤዝ ስህተት፡ " + e.message); }
 }
 
 function openReader(book) {
     const listContainer = document.getElementById('language-list');
-    const content = (book.Content || book.content || "").toString().replace(/['"]+/g, '');
-    const title = (book.Title || book.title || "").toString().replace(/['"]+/g, '');
+    let title = "", content = "";
+    for (let key in book) {
+        let k = key.toLowerCase().trim();
+        if (k === "title") title = clean(book[key]);
+        if (k === "content") content = book[key].toString().replace(/['"]+/g, '');
+    }
     listContainer.innerHTML = `
         <div class="reader-view">
-            <button onclick="renderLanguages()">⬅️ ዝርዝር</button>
-            <h2 style="color:#0055ff;">${title}</h2><hr>
-            <div style="white-space: pre-wrap; margin-top:20px;">${content}</div>
-        </div>
-    `;
+            <button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px;">⬅️ ዝርዝር</button>
+            <h2 style="color:#0055ff; border-bottom:1px solid #ddd; padding-bottom:10px;">${title}</h2>
+            <div style="white-space: pre-wrap; margin-top:20px; font-size:18px;">${content}</div>
+        </div>`;
     window.scrollTo(0,0);
 }
-
 document.addEventListener('DOMContentLoaded', renderLanguages);
