@@ -3,7 +3,7 @@ const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
-// 2. ያንተ የFirebase ቁልፍ (Config)
+// 2. ያንተ የFirebase ቁልፍ (Config) - በትክክል ገብቷል
 const firebaseConfig = {
     apiKey: "AIzaSyDmsc0Vpm6cjLeMl9I0W0mjvqS_CYq5oRw",
     authDomain: "globalnovels-73cbb.firebaseapp.com",
@@ -14,7 +14,9 @@ const firebaseConfig = {
 };
 
 // Firebase መቆራኘት
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 const db = firebase.firestore();
 
 // 14ቱ ቋንቋዎች
@@ -35,7 +37,6 @@ const languages = [
     { id: 'ru', name: 'Russian', native: '(Русские романы)', flag: 'https://flagcdn.com/w160/ru.png' }
 ];
 
-// ቋንቋዎቹን መጀመሪያ ማሳየት
 function renderLanguages() {
     const listContainer = document.getElementById('language-list');
     listContainer.innerHTML = '';
@@ -52,53 +53,50 @@ function renderLanguages() {
     });
 }
 
-// መጽሐፍትን ከዳታቤዝ ማምጣት
 async function loadNovels(langId) {
     const listContainer = document.getElementById('language-list');
     listContainer.innerHTML = '<div style="padding:50px;">በመፈለግ ላይ...</div>';
 
     try {
-        // አንተ በሰጠኸው ስም "Novels" እና "Language" (Title Case) ነው የተጠቀምኩት
+        // መዝገቡ Novels (ካፒታል N) እና መለያው Language (ካፒታል L) መሆኑን አረጋግጫለሁ
         const snapshot = await db.collection("Novels")
                                  .where("Language", "==", langId)
                                  .get();
 
         if (snapshot.empty) {
             listContainer.innerHTML = `
-                <button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px;">⬅️ ተመለስ</button>
-                <p>ለዚህ ቋንቋ እስካሁን መጽሐፍ አልተጫነም!</p>
+                <button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ተመለስ</button>
+                <p>ለዚህ ቋንቋ (${langId}) እስካሁን መጽሐፍ አልተጫነም!</p>
             `;
             return;
         }
 
-        listContainer.innerHTML = `<button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px;">⬅️ ወደ ቋንቋ መምረጫ</button>`;
+        listContainer.innerHTML = `<button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ወደ ቋንቋ መምረጫ</button>`;
 
         snapshot.forEach(doc => {
             const data = doc.data();
             const bookDiv = document.createElement('div');
             bookDiv.className = 'book-card';
+            // እዚህ ጋር በካፒታል ፊደል መጀመራቸውን (Title, Author, Cover) አረጋግጫለሁ
             bookDiv.innerHTML = `
-                <img src="${data.Cover === 'default' ? 'https://via.placeholder.com/150x200' : data.Cover}" style="width:100%; height:200px; object-fit:cover; border-radius:10px; margin-bottom:10px;">
+                <img src="${data.Cover}" style="width:100%; height:200px; object-fit:cover; border-radius:10px; margin-bottom:10px;">
                 <h3 style="margin:5px 0;">${data.Title}</h3>
                 <p style="margin:5px 0; color:#666;">ደራሲ፡ ${data.Author}</p>
-                <p style="font-size:13px; color:#888;">${data.Description.substring(0, 80)}...</p>
                 <button class="read-btn" style="margin-top:10px;">አንብብ</button>
             `;
             bookDiv.onclick = () => openReader(data);
             listContainer.appendChild(bookDiv);
         });
     } catch (error) {
-        console.error("Firebase Error:", error);
-        alert("መረጃውን ማምጣት አልተቻለም!");
+        alert("ስህተት፡ " + error.message);
     }
 }
 
-// መጽሐፍ ማንበቢያ
 function openReader(book) {
     const listContainer = document.getElementById('language-list');
     listContainer.innerHTML = `
         <div class="reader-view">
-            <button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px;">⬅️ ዝርዝር</button>
+            <button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ዝርዝር</button>
             <h1 style="color:#0055ff; margin-bottom:5px;">${book.Title}</h1>
             <p style="color:#666; margin-bottom:20px;">በ ${book.Author}</p>
             <hr>
@@ -110,5 +108,4 @@ function openReader(book) {
     window.scrollTo(0, 0);
 }
 
-// አፑ ሲከፈት ማስጀመር
 document.addEventListener('DOMContentLoaded', renderLanguages);
