@@ -13,10 +13,28 @@ const firebaseConfig = {
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const db = firebase.firestore();
 
+// 1. የትርጉም መዝገብ (ለአፑ ቁልፎች)
+const translations = {
+    am: { loading: "በመፈለግ ላይ...", read: "አንብብ", back: "ተመለስ", empty: "መጽሐፍ አልተገኘም!" },
+    en: { loading: "Searching...", read: "Read", back: "Back", empty: "No books found!" },
+    id: { loading: "Mencari...", read: "Baca", back: "Kembali", empty: "Buku tidak ditemukan!" },
+    ko: { loading: "검색 중...", read: "읽기", back: "뒤로", empty: "책ን 찾을 수 없습니다!" },
+    ja: { loading: "検索中...", read: "読む", back: "戻る", empty: "本が見つかりません!" },
+    ar: { loading: "جاري البحث...", read: "اقرأ", back: "عودة", empty: "لم يتم العثور على كتب!" },
+    hi: { loading: "खोज रहे हैं...", read: "पढ़ें", back: "पीछे", empty: "कोई किताब नहीं मिली!" },
+    zh: { loading: "正在搜索...", read: "阅读", back: "返回", empty: "未找到书籍!" },
+    fr: { loading: "Recherche...", read: "Lire", back: "Retour", empty: "Aucun livre trouvé!" },
+    it: { loading: "Ricerca...", read: "Leggi", back: "Indietro", empty: "Nessun libro trovato!" },
+    es: { loading: "Buscando...", read: "Leer", back: "Volver", empty: "¡No se encontraron libros!" },
+    de: { loading: "Suchen...", read: "Lesen", back: "Zurück", empty: "Keine Bücher gefunden!" },
+    pt: { loading: "Procurando...", read: "Ler", back: "Voltar", empty: "Nenhum livro encontrado!" },
+    ru: { loading: "Поиск...", read: "Читать", back: "Назад", empty: "Книг नहीं मिले!" }
+};
+
 const languages = [
     { id: 'am', name: 'Amharic', native: '(የአማርኛ ልብወለዶች)', flag: 'https://flagcdn.com/w160/et.png' },
     { id: 'en', name: 'English', native: 'English Novels', flag: 'https://flagcdn.com/w160/gb.png' },
-    { id: 'id', name: 'Indonesian', native: '(Bahasa Indonesia)', flag: 'https://flagcdn.com/w160/id.png' },
+    { id: 'id', name: 'Indonesian', native: '(Novel Bahasa Indonesia)', flag: 'https://flagcdn.com/w160/id.png' },
     { id: 'ko', name: 'Korean', native: '(한국 소설)', flag: 'https://flagcdn.com/w160/kr.png' },
     { id: 'ja', name: 'Japanese', native: '(日本の小説)', flag: 'https://flagcdn.com/w160/jp.png' },
     { id: 'ar', name: 'Arabic', native: '(روايات عربية)', flag: 'https://flagcdn.com/w160/sa.png' },
@@ -32,7 +50,7 @@ const languages = [
 
 function renderLanguages() {
     const listContainer = document.getElementById('language-list');
-    listContainer.innerHTML = '';
+    listContainer.innerHTML = '<h1 style="color:#0055ff;">Global Novels</h1>';
     languages.forEach(lang => {
         const div = document.createElement('div');
         div.className = 'lang-item';
@@ -45,47 +63,39 @@ function renderLanguages() {
 // ማንኛውንም ምልክት (እንደ ") እና ክፍት ቦታ የሚያጠፋ
 function clean(val) {
     if (!val) return "";
-    return val.toString().replace(/['"]+/g, '').trim().toLowerCase();
+    return val.toString().replace(/['"]+/g, '').trim();
 }
 
 async function loadNovels(langId) {
     const listContainer = document.getElementById('language-list');
-    listContainer.innerHTML = '<div style="padding:50px;">በመፈለግ ላይ...</div>';
+    const t = translations[langId] || translations['en']; // ትርጉሙን መምረጥ
+    
+    listContainer.innerHTML = `<div style="padding:50px;">${t.loading}</div>`;
     
     try {
-        // 1. መዝገቡን (Collection) በሁለቱም መንገድ እንፈትሽ
-        let snapshot = await db.collection("Novels").get();
-        if (snapshot.empty) { snapshot = await db.collection("novels").get(); }
-
-        if (snapshot.empty) {
-            listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ተመለስ</button><p>ዳታቤዝ ላይ 'Novels' የሚባል መዝገብ አልተገኘም!</p>`;
-            return;
-        }
-
+        const snapshot = await db.collection("Novels").get();
         let foundBooks = [];
+        
         snapshot.forEach(doc => {
             const data = doc.data();
-            // 2. በዳታቤዝህ ውስጥ ያለውን የቋንቋ መለያ (Language) ፈልጎ ማግኘት
             let dbLang = "";
             for (let key in data) {
-                if (key.toLowerCase().trim() === "language") {
-                    dbLang = clean(data[key]);
-                }
+                if (key.toLowerCase().trim() === "language") dbLang = clean(data[key]);
             }
-            if (dbLang === langId.toLowerCase()) { foundBooks.push(data); }
+            if (dbLang.toLowerCase() === langId.toLowerCase()) foundBooks.push(data);
         });
 
         if (foundBooks.length === 0) {
-            listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ተመለስ</button><p>ለቋንቋው (${langId}) መጽሐፍ አልተገኘም!</p>`;
+            listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ${t.back}</button><p>${t.empty}</p>`;
             return;
         }
 
-        // 3. መጽሐፉን ማሳየት
-        listContainer.innerHTML = `<button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px;">⬅️ ተመለስ</button>`;
+        listContainer.innerHTML = `<button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ${t.back}</button>`;
+        
         foundBooks.forEach(data => {
             const div = document.createElement('div');
             div.className = 'book-card';
-            // መረጃዎቹን (Title, Author, Cover) በብልህ መንገድ መለየት
+            
             let title = "", author = "", cover = "";
             for (let key in data) {
                 let k = key.toLowerCase().trim();
@@ -95,30 +105,34 @@ async function loadNovels(langId) {
             }
 
             div.innerHTML = `
-                <img src="${cover || 'https://via.placeholder.com/150'}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
-                <h3 style="margin-top:10px;">${title || "ርዕስ የለም"}</h3>
-                <p>ደራሲ፡ ${author || "ደራሲ የለም"}</p>
-                <button class="read-btn">አንብብ</button>`;
-            div.onclick = () => openReader(data);
+                <img src="${cover || 'https://via.placeholder.com/150'}" style="width:100%; height:200px; object-fit:cover; border-radius:10px;">
+                <h3 style="margin-top:10px;">${title}</h3>
+                <p>ደራሲ፡ ${author}</p>
+                <button class="read-btn">${t.read}</button>`;
+            div.onclick = () => openReader(data, langId);
             listContainer.appendChild(div);
         });
-    } catch (e) { alert("የዳታቤዝ ስህተት፡ " + e.message); }
+    } catch (e) { alert("Error: " + e.message); }
 }
 
-function openReader(book) {
+function openReader(book, langId) {
     const listContainer = document.getElementById('language-list');
+    const t = translations[langId] || translations['en'];
+    
     let title = "", content = "";
     for (let key in book) {
         let k = key.toLowerCase().trim();
         if (k === "title") title = clean(book[key]);
         if (k === "content") content = book[key].toString().replace(/['"]+/g, '');
     }
+    
     listContainer.innerHTML = `
         <div class="reader-view">
-            <button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px;">⬅️ ዝርዝር</button>
+            <button onclick="loadNovels('${langId}')" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ${t.back}</button>
             <h2 style="color:#0055ff; border-bottom:1px solid #ddd; padding-bottom:10px;">${title}</h2>
-            <div style="white-space: pre-wrap; margin-top:20px; font-size:18px;">${content}</div>
+            <div style="white-space: pre-wrap; margin-top:20px; font-size:18px; line-height:1.9;">${content}</div>
         </div>`;
     window.scrollTo(0,0);
 }
+
 document.addEventListener('DOMContentLoaded', renderLanguages);
