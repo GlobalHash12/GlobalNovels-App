@@ -13,20 +13,44 @@ const firebaseConfig = {
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const db = firebase.firestore();
 
+// የትርጉም መዝገብ - 14ቱም ቋንቋዎች
 const translations = {
     am: { loading: "በመፈለግ ላይ...", read: "ምዕራፎች", back: "ተመለስ", ads: "ማስታወቂያ...", empty: "መጽሐፍ የለም!" },
-    en: { loading: "Loading...", read: "Chapters", back: "Back", ads: "Ad...", empty: "No books!" }
+    en: { loading: "Loading...", read: "Chapters", back: "Back", ads: "Ad...", empty: "No books!" },
+    id: { loading: "Memuat...", read: "Bab", back: "Kembali", ads: "Iklan...", empty: "Tidak ada!" },
+    ko: { loading: "로딩 중...", read: "장", back: "뒤로", ads: "광고...", empty: "책 없음!" },
+    ja: { loading: "読み込み中...", read: "章", back: "戻る", ads: "広告...", empty: "本なし!" },
+    ar: { loading: "جاري التحميل...", read: "فصول", back: "رجوع", ads: "إعلان...", empty: "لا يوجد!" },
+    hi: { loading: "लोड हो रहा है...", read: "अध्याय", back: "पीछे", ads: "विज्ञापन...", empty: "कोई किताब नहीं!" },
+    zh: { loading: "加载中...", read: "章节", back: "返回", ads: "广告...", empty: "无书籍!" },
+    fr: { loading: "Chargement...", read: "Chapitres", back: "Retour", ads: "Publicité...", empty: "Aucun!" },
+    it: { loading: "Caricamento...", read: "Capitoli", back: "Indietro", ads: "Pubblicità...", empty: "Nessuno!" },
+    es: { loading: "Cargando...", read: "Capítulos", back: "Volver", ads: "Anuncio...", empty: "¡No hay!" },
+    de: { loading: "Laden...", read: "Kapitel", back: "Zurück", ads: "Anzeige...", empty: "Keine!" },
+    pt: { loading: "Carregando...", read: "Capítulos", back: "Voltar", ads: "Anúncio...", empty: "Nenhum!" },
+    ru: { loading: "Загрузка...", read: "Главы", back: "Назад", ads: "Реклама...", empty: "Книг нет!" }
 };
 
 const languages = [
     { id: 'am', name: 'Amharic', native: '(የአማርኛ ልብወለዶች)', flag: 'https://flagcdn.com/w160/et.png' },
     { id: 'en', name: 'English', native: 'English Novels', flag: 'https://flagcdn.com/w160/gb.png' },
+    { id: 'id', name: 'Indonesian', native: '(Bahasa Indonesia)', flag: 'https://flagcdn.com/w160/id.png' },
+    { id: 'ko', name: 'Korean', native: '(한국 소설)', flag: 'https://flagcdn.com/w160/kr.png' },
+    { id: 'ja', name: 'Japanese', native: '(日本の小説)', flag: 'https://flagcdn.com/w160/jp.png' },
+    { id: 'ar', name: 'Arabic', native: '(روايات عربية)', flag: 'https://flagcdn.com/w160/sa.png' },
+    { id: 'hi', name: 'Hindi', native: '(हिंदी उपन्यास)', flag: 'https://flagcdn.com/w160/in.png' },
+    { id: 'zh', name: 'Chinese', native: '(中文小说)', flag: 'https://flagcdn.com/w160/cn.png' },
+    { id: 'fr', name: 'French', native: '(Romans français)', flag: 'https://flagcdn.com/w160/fr.png' },
+    { id: 'it', name: 'Italian', native: '(Romanzi italiani)', flag: 'https://flagcdn.com/w160/it.png' },
+    { id: 'es', name: 'Spanish', native: '(Novelas en español)', flag: 'https://flagcdn.com/w160/es.png' },
+    { id: 'de', name: 'German', native: '(Deutsche Romane)', flag: 'https://flagcdn.com/w160/de.png' },
+    { id: 'pt', name: 'Portuguese', native: '(Romances portugueses)', flag: 'https://flagcdn.com/w160/pt.png' },
     { id: 'ru', name: 'Russian', native: '(Русские романы)', flag: 'https://flagcdn.com/w160/ru.png' }
 ];
 
 function renderLanguages() {
     const listContainer = document.getElementById('language-list');
-    listContainer.innerHTML = '<h2 style="color:#0055ff; text-align:center;">Global Novels</h2>';
+    listContainer.innerHTML = '<h2 style="color:#0055ff; text-align:center; margin-bottom:20px;">Global Novels</h2>';
     languages.forEach(lang => {
         const div = document.createElement('div');
         div.className = 'lang-item';
@@ -37,9 +61,8 @@ function renderLanguages() {
 }
 
 function clean(val) { return val ? val.toString().replace(/['"]+/g, '').trim() : ""; }
-
 function contactUs() { tg.openTelegramLink("https://t.me/GlobalHash12"); }
-function toggleSearch() { alert("ፍለጋ በቅርቡ ይጀምራል።"); }
+function toggleSearch() { alert("የፍለጋ ሲስተም በቅርቡ ይጀምራል!"); }
 
 async function loadNovels(langId) {
     const listContainer = document.getElementById('language-list');
@@ -76,10 +99,7 @@ async function loadNovels(langId) {
             }
             const div = document.createElement('div');
             div.className = 'book-card';
-            div.innerHTML = `
-                <img src="${cover || 'https://via.placeholder.com/150'}">
-                <div class="book-info"><h3>${title}</h3><p>በ ${author}</p></div>
-                <button class="read-btn">${t.read}</button>`;
+            div.innerHTML = `<img src="${cover || 'https://via.placeholder.com/150'}"><div class="book-info"><h3>${title}</h3><p>በ ${author}</p></div><button class="read-btn">${t.read}</button>`;
             div.onclick = () => showChapters(title, langId);
             listContainer.appendChild(div);
         });
@@ -89,7 +109,7 @@ async function loadNovels(langId) {
 async function showChapters(bookTitle, langId) {
     const listContainer = document.getElementById('language-list');
     const t = translations[langId] || translations['en'];
-    listContainer.innerHTML = `<button class="back-btn" onclick="loadNovels('${langId}')">⬅️ ${t.back}</button><h3>${bookTitle}</h3><p>የምዕራፎች ዝርዝር</p><hr>`;
+    listContainer.innerHTML = `<button class="back-btn" onclick="loadNovels('${langId}')">⬅️ ${t.back}</button><h3>${bookTitle}</h3><p style="color:#666;">የምዕራፎች ዝርዝር</p><hr>`;
 
     const snapshot = await db.collection("Novels").get();
     let chapters = [];
@@ -137,7 +157,7 @@ function openReader(book, langId) {
     listContainer.innerHTML = `
         <div class="reader-view">
             <button class="back-btn" onclick="showChapters('${title}', '${langId}')">⬅️ ተመለስ</button>
-            <h2 style="color:#0055ff;">${title} - ምዕራፍ ${chNum}</h2><hr>
+            <h2 style="color:#0055ff; margin-bottom:5px;">${title} - ምዕራፍ ${chNum}</h2><hr>
             <div style="white-space: pre-wrap; margin-top:20px;">${content}</div>
         </div>`;
     window.scrollTo(0,0);
