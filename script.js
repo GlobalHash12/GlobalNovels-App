@@ -13,9 +13,11 @@ const firebaseConfig = {
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const db = firebase.firestore();
 
+// 1. የትርጉም መዝገብ
 const translations = {
     am: { loading: "በመፈለግ ላይ...", read: "ምዕራፎች", back: "ተመለስ", ads: "ማስታወቂያ (በ5 ሰከንድ ይነበባል...)", empty: "መጽሐፍ አልተገኘም!" },
-    en: { loading: "Loading...", read: "Chapters", back: "Back", ads: "Ad (Reading in 5s...)", empty: "No books found!" }
+    en: { loading: "Loading...", read: "Chapters", back: "Back", ads: "Ad (Reading in 5s...)", empty: "No books found!" },
+    ru: { loading: "Поиск...", read: "Главы", back: "Назад", ads: "Реклама...", empty: "Книг нет!" }
 };
 
 const languages = [
@@ -37,7 +39,7 @@ const languages = [
 
 function renderLanguages() {
     const listContainer = document.getElementById('language-list');
-    listContainer.innerHTML = '<h1 style="color:#0055ff; margin-bottom:30px;">Global Novels</h1>';
+    listContainer.innerHTML = '<h1 style="color:#0055ff;">Global Novels</h1>';
     languages.forEach(lang => {
         const div = document.createElement('div');
         div.className = 'lang-item';
@@ -47,7 +49,10 @@ function renderLanguages() {
     });
 }
 
-function clean(val) { return val ? val.toString().replace(/['"]+/g, '').trim() : ""; }
+function clean(val) {
+    if (!val) return "";
+    return val.toString().replace(/['"]+/g, '').trim();
+}
 
 async function loadNovels(langId) {
     const listContainer = document.getElementById('language-list');
@@ -56,35 +61,50 @@ async function loadNovels(langId) {
     
     try {
         const snapshot = await db.collection("Novels").get();
-        let books = {}; 
+        let booksMap = {}; 
 
         snapshot.forEach(doc => {
             const data = doc.data();
-            const dbLang = clean(data.Language || data.language);
+            let dbLang = "";
+            for (let key in data) {
+                if (key.toLowerCase().trim() === "language") dbLang = clean(data[key]);
+            }
+            
             if (dbLang.toLowerCase() === langId.toLowerCase()) {
-                const title = clean(data.Title || data.title);
-                if (!books[title]) books[title] = data; 
+                let title = "";
+                for (let key in data) {
+                    if (key.toLowerCase().trim() === "title") title = clean(data[key]);
+                }
+                if (!booksMap[title]) booksMap[title] = data;
             }
         });
 
-        if (Object.keys(books).length === 0) {
+        const bookTitles = Object.keys(booksMap);
+        if (bookTitles.length === 0) {
             listContainer.innerHTML = `<button onclick="renderLanguages()">⬅️ ${t.back}</button><p>${t.empty}</p>`;
             return;
         }
 
-        listContainer.innerHTML = `<button onclick="renderLanguages()" style="margin-bottom:20px;">⬅️ ${t.back}</button>`;
-        for (let title in books) {
-            const data = books[title];
+        listContainer.innerHTML = `<button onclick="renderLanguages()" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ${t.back}</button>`;
+        bookTitles.forEach(title => {
+            const data = booksMap[title];
+            let author = "", cover = "";
+            for (let key in data) {
+                let k = key.toLowerCase().trim();
+                if (k === "author") author = clean(data[key]);
+                if (k === "cover") cover = clean(data[key]);
+            }
+
             const div = document.createElement('div');
             div.className = 'book-card';
             div.innerHTML = `
-                <img src="${clean(data.Cover || data.cover)}">
-                <div class="book-info"><h3>${title}</h3><p>በ ${clean(data.Author || data.author)}</p></div>
+                <img src="${cover || 'https://via.placeholder.com/150'}">
+                <div class="book-info"><h3>${title}</h3><p>በ ${author}</p></div>
                 <button class="read-btn">${t.read}</button>`;
             div.onclick = () => showChapters(title, langId);
             listContainer.appendChild(div);
-        }
-    } catch (e) { alert(e.message); }
+        });
+    } catch (e) { alert("Error: " + e.message); }
 }
 
 async function showChapters(bookTitle, langId) {
@@ -92,26 +112,35 @@ async function showChapters(bookTitle, langId) {
     const t = translations[langId] || translations['en'];
     listContainer.innerHTML = `<h3>${bookTitle}</h3><p>የምዕራፎች ዝርዝር</p><hr>`;
 
-    try {
-        const snapshot = await db.collection("Novels").get();
-        let chapters = [];
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            if (clean(data.Title || data.title) === bookTitle) {
-                chapters.push(data);
-            }
-        });
+    const snapshot = await db.collection("Novels").get();
+    let chapters = [];
+    snapshot.forEach(doc => {
+        const data = doc.data();
+        let currentTitle = "";
+        for (let key in data) {
+            if (key.toLowerCase().trim() === "title") currentTitle = clean(data[key]);
+        }
+        if (currentTitle === bookTitle) {
+            chapters.push(data);
+        }
+    });
 
-        chapters.sort((a, b) => (parseInt(a.Chapter || a.chapter) || 0) - (parseInt(b.Chapter || b.chapter) || 0));
+    chapters.sort((a, b) => {
+        let valA = 0, valB = 0;
+        for(let k in a) if(k.toLowerCase().trim()==="chapter") valA = parseInt(clean(a[k]));
+        for(let k in b) if(k.toLowerCase().trim()==="chapter") valB = parseInt(clean(b[k]));
+        return valA - valB;
+    });
 
-        chapters.forEach(ch => {
-            const btn = document.createElement('button');
-            btn.className = 'chapter-btn';
-            btn.innerHTML = `<span>ምዕራፍ ${ch.Chapter || ch.chapter}</span> <span>📖</span>`;
-            btn.onclick = () => showAdBeforeChapter(ch, langId);
-            listContainer.appendChild(btn);
-        });
-    } catch (e) { alert(e.message); }
+    chapters.forEach(ch => {
+        let chNum = 0;
+        for(let k in ch) if(k.toLowerCase().trim()==="chapter") chNum = clean(ch[k]);
+        const btn = document.createElement('button');
+        btn.className = 'chapter-btn';
+        btn.innerHTML = `<span>ምዕራፍ ${chNum}</span> <span>📖</span>`;
+        btn.onclick = () => showAdBeforeChapter(ch, langId);
+        listContainer.appendChild(btn);
+    });
 }
 
 function showAdBeforeChapter(chapter, langId) {
@@ -121,7 +150,7 @@ function showAdBeforeChapter(chapter, langId) {
         <div style="padding:80px 20px; text-align:center;">
             <p>${t.ads}</p>
             <div style="background:#f0f5ff; height:250px; margin:20px 0; display:flex; align-items:center; justify-content:center; border-radius:20px; border:2px dashed #0055ff;">
-                <p style="color:#0055ff;">ማስታወቂያ እዚህ ይገባል</p>
+                <p style="color:#0055ff; font-weight:bold;">የማስታወቂያ ቦታ</p>
             </div>
         </div>`;
     setTimeout(() => { openReader(chapter, langId); }, 5000);
@@ -129,11 +158,18 @@ function showAdBeforeChapter(chapter, langId) {
 
 function openReader(book, langId) {
     const listContainer = document.getElementById('language-list');
+    let title = "", content = "", chNum = "";
+    for (let key in book) {
+        let k = key.toLowerCase().trim();
+        if (k === "title") title = clean(book[key]);
+        if (k === "content") content = book[key].toString().replace(/['"]+/g, '');
+        if (k === "chapter") chNum = clean(book[key]);
+    }
     listContainer.innerHTML = `
         <div class="reader-view">
-            <button onclick="showChapters('${clean(book.Title || book.title)}', '${langId}')">⬅️ ተመለስ</button>
-            <h2 style="color:#0055ff;">${clean(book.Title || book.title)} - ምዕራፍ ${book.Chapter || book.chapter}</h2><hr>
-            <div style="white-space: pre-wrap; margin-top:20px;">${clean(book.Content || book.content)}</div>
+            <button onclick="showChapters('${title}', '${langId}')" style="margin-bottom:20px; padding:10px; border-radius:10px;">⬅️ ተመለስ</button>
+            <h2 style="color:#0055ff;">${title} - ምዕራፍ ${chNum}</h2><hr>
+            <div style="white-space: pre-wrap; margin-top:20px;">${content}</div>
         </div>`;
     window.scrollTo(0,0);
 }
