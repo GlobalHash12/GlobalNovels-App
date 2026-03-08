@@ -12,15 +12,14 @@
 <body>
     <header class="main-header">
         <div class="header-icons">
-            <!-- toggleSearch() እና contactUs() ተግባራዊ ሆነዋል -->
-            <div class="nav-item" onclick="toggleSearch()"><span class="icon">🔍</span><span>Search</span></div>
-            <div class="nav-item" onclick="contactUs()"><span class="icon">📧</span><span>Contact</span></div>
-            <div class="nav-item" onclick="location.reload()"><span class="icon">⬇️</span></div>
-            <div class="nav-item" onclick="alert('ምንም አዲስ ማሳሰቢያ የለም።')"><span class="icon">🔔</span></div>
+            <div class="icon-circle" onclick="alert('ፍለጋ በቅርቡ ይጀምራል!')"><span>🔍</span><span>Search</span></div>
+            <div class="icon-circle" onclick="contactUs()"><span>@</span><span>CONTACT US</span></div>
+            <div class="icon-circle" onclick="location.reload()"><span>⬇️</span></div>
+            <div class="icon-circle" onclick="alert('ምንም አዲስ መልእክት የለም።')"><span>🔔</span></div>
         </div>
     </header>
     <main id="language-list" class="lang-container">
-        <div style="padding:50px;">Loading...</div>
+        <div style="padding:50px;">በመጫን ላይ...</div>
     </main>
     <script src="script.js"></script>
 </body>
