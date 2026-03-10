@@ -15,12 +15,12 @@ const db = firebase.firestore();
 
 const translations = {
     am: { loading: "በመፈለግ ላይ...", read: "ምዕራፎች", back: "ተመለስ", ads: "ማስታወቂያ...", empty: "መጽሐፍ የለም!" },
-    sw: { loading: "Inatafuta...", read: "Sura", back: "Rudi", ads: "Tangazo...", empty: "Hakuna vitabu!" },
-    ha: { loading: "Ana dubawa...", read: "Sura", back: "Koma", ads: "Talla...", empty: "Babu littattafai!" },
+    sw: { loading: "Inatafuta...", read: "Sura", back: "Rudi", ads: "Tangazo...", empty: "Hakuna!" },
+    ha: { loading: "Dubawa...", read: "Sura", back: "Koma", ads: "Talla...", empty: "Babu!" },
     en: { loading: "Loading...", read: "Chapters", back: "Back", ads: "Ad...", empty: "No books!" }
 };
 
-// ቋንቋዎቹ በፎቶው ቅደም ተከተል (ክብ ባንዲራዎች)
+// 16ቱም ቋንቋዎች በቅደም ተከተል
 const languages = [
     { id: 'am', name: 'Amharic', native: '(የአማርኛ ልብወለዶች)', flag: 'https://flagcdn.com/w320/et.png' },
     { id: 'sw', name: 'Swahili', native: '(Riwaya za Kiswahili)', flag: 'https://flagcdn.com/w320/tz.png' },
@@ -42,7 +42,7 @@ const languages = [
 
 function renderLanguages() {
     const listContainer = document.getElementById('language-list');
-    listContainer.innerHTML = '<h2 style="color:#0055ff; margin-bottom:30px;">Global Novels</h2>';
+    listContainer.innerHTML = '<h2 style="color:#0055ff; text-align:center; margin-bottom:30px;">Global Novels</h2>';
     languages.forEach(lang => {
         const div = document.createElement('div');
         div.className = 'lang-item';
@@ -59,30 +59,29 @@ async function loadNovels(langId) {
     const listContainer = document.getElementById('language-list');
     const t = translations[langId] || translations['en'];
     listContainer.innerHTML = `<div style="padding:50px;">${t.loading}</div>`;
-    
     try {
         const snapshot = await db.collection("Novels").get();
         let booksMap = {}; 
         snapshot.forEach(doc => {
             const data = doc.data();
-            let dbLang = clean(data.Language || data.language);
+            let dbLang = "";
+            for (let key in data) if (key.toLowerCase().trim() === "language") dbLang = clean(data[key]);
             if (dbLang.toLowerCase() === langId.toLowerCase()) {
                 let title = clean(data.Title || data.title);
                 if (!booksMap[title]) booksMap[title] = data;
             }
         });
-
         if (Object.keys(booksMap).length === 0) {
             listContainer.innerHTML = `<button class="back-btn" onclick="renderLanguages()">⬅️ ${t.back}</button><p>${t.empty}</p>`;
             return;
         }
-
         listContainer.innerHTML = `<button class="back-btn" onclick="renderLanguages()">⬅️ ${t.back}</button>`;
         Object.keys(booksMap).forEach(title => {
             const data = booksMap[title];
+            let author = clean(data.Author || data.author), cover = clean(data.Cover || data.cover);
             const div = document.createElement('div');
             div.className = 'book-card';
-            div.innerHTML = `<img src="${clean(data.Cover || data.cover)}"><div class="book-info"><h3>${title}</h3><p>በ ${clean(data.Author || data.author)}</p></div><button class="read-btn">${t.read}</button>`;
+            div.innerHTML = `<img src="${cover || 'https://via.placeholder.com/150'}"><div class="book-info"><h3>${title}</h3><p>በ ${author}</p></div><button class="read-btn">${t.read}</button>`;
             div.onclick = () => showChapters(title, langId);
             listContainer.appendChild(div);
         });
@@ -92,22 +91,18 @@ async function loadNovels(langId) {
 async function showChapters(bookTitle, langId) {
     const listContainer = document.getElementById('language-list');
     const t = translations[langId] || translations['en'];
-    listContainer.innerHTML = `<button class="back-btn" onclick="loadNovels('${langId}')">⬅️ ${t.back}</button><h3>${bookTitle}</h3><p>ምዕራፎች</p><hr>`;
-
+    listContainer.innerHTML = `<button class="back-btn" onclick="loadNovels('${langId}')">⬅️ ${t.back}</button><h3>${bookTitle}</h3><hr>`;
     const snapshot = await db.collection("Novels").get();
     let chapters = [];
     snapshot.forEach(doc => {
         const data = doc.data();
         if (clean(data.Title || data.title) === bookTitle) chapters.push(data);
     });
-
-    chapters.sort((a, b) => (parseInt(a.Chapter || a.chapter) || 0) - (parseInt(b.Chapter || b.chapter) || 0));
-
+    chapters.sort((a, b) => (parseInt(clean(a.Chapter || a.chapter)) || 0) - (parseInt(clean(b.Chapter || b.chapter)) || 0));
     chapters.forEach(ch => {
-        let chNum = clean(ch.Chapter || ch.chapter);
         const btn = document.createElement('button');
-        btn.className = 'chapter-btn';
-        btn.innerHTML = `<span>ምዕራፍ ${chNum}</span> <span>📖</span>`;
+        btn.style = "width:100%; padding:15px; margin-bottom:10px; border:1px solid #eee; border-radius:12px; background:#fff; text-align:left; display:flex; justify-content:space-between;";
+        btn.innerHTML = `<span>ምዕራፍ ${clean(ch.Chapter || ch.chapter)}</span> <span>📖</span>`;
         btn.onclick = () => showAdBeforeChapter(ch, langId);
         listContainer.appendChild(btn);
     });
